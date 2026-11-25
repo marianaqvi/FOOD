@@ -1,0 +1,199 @@
+{
+ "format_version": 1,
+ "asset_version": "f02e018d6e95",
+ "source_sha256": "f02e018d6e9576f443164b0019126290bdc216928c3b880f05e2b2487242d559",
+ "width": 64,
+ "height": 32,
+ "layers": [
+  "sheep_a",
+  "sheep_b",
+  "effects"
+ ],
+ "record_size": 770,
+ "record_layout": "u16le duration_ms + sheep_a[256] + sheep_b[256] + effects[256]; mask = 32 rows x 8 bytes, row-major, MSB-first",
+ "total_frames": 624,
+ "total_bytes": 480480,
+ "max_lit_pixels": 281,
+ "reactions": [
+  {
+   "id": "idle",
+   "label": "Idle",
+   "file": "idle.bin",
+   "frames": 40,
+   "duration_ms": 6000,
+   "bytes": 30800,
+   "crc32": 2868607696,
+   "sha256": "1034178007ac81ea530bf7343416abe6d735f0057dbd4606c320041bbd5d2141"
+  },
+  {
+   "id": "wake",
+   "label": "Wake up",
+   "file": "wake.bin",
+   "frames": 40,
+   "duration_ms": 6000,
+   "bytes": 30800,
+   "crc32": 3696332393,
+   "sha256": "1e086b08285ad6d23f8513b5ed66ac77279b965fb4a9a44b6c891e15bc6958e2"
+  },
+  {
+   "id": "arrive",
+   "label": "Arrival",
+   "file": "arrive.bin",
+   "frames": 40,
+   "duration_ms": 6000,
+   "bytes": 30800,
+   "crc32": 3081342555,
+   "sha256": "22ffa1b8956b9e8f0de39fdce9565868ffeabbf11a04b617b7fb563f239028df"
+  },
+  {
+   "id": "weather_rain",
+   "label": "Rain",
+   "file": "weather_rain.bin",
+   "frames": 32,
+   "duration_ms": 4800,
+   "bytes": 24640,
+   "crc32": 779995259,
+   "sha256": "82984e9cf0334ea60ee0dcfa2eaae3c017eb7c10fb6f19d5d04d2cf8f04670ad"
+  },
+  {
+   "id": "weather_sun",
+   "label": "Sunshine",
+   "file": "weather_sun.bin",
+   "frames": 32,
+   "duration_ms": 4800,
+   "bytes": 24640,
+   "crc32": 350575961,
+   "sha256": "05f2e8dbd6a1e13f37389b3614c4901d8b1ab668eebc742cc5efaa4ef38f668b"
+  },
+  {
+   "id": "weather_cloud",
+   "label": "Cloudy",
+   "file": "weather_cloud.bin",
+   "frames": 32,
+   "duration_ms": 4800,
+   "bytes": 24640,
+   "crc32": 445845139,
+   "sha256": "b44550bf11e675bf72bf9e35e8ab5517c4b6060981fb010f1981032604a168ed"
+  },
+  {
+   "id": "celebrate",
+   "label": "Celebrate",
+   "file": "celebrate.bin",
+   "frames": 32,
+   "duration_ms": 4800,
+   "bytes": 24640,
+   "crc32": 1387176730,
+   "sha256": "c5de73944f837c34c0f1df721868d0a95edb63e0a0c1ca79c2df926c02a2c086"
+  },
+  {
+   "id": "birthday",
+   "label": "Birthday",
+   "file": "birthday.bin",
+   "frames": 40,
+   "duration_ms": 6000,
+   "bytes": 30800,
+   "crc32": 4114117456,
+   "sha256": "7c88c77c4dbb32a5fad2a24f5665228cc5b21624083e5321da791107adc24213"
+  },
+  {
+   "id": "sleep",
+   "label": "Sleep",
+   "file": "sleep.bin",
+   "frames": 40,
+   "duration_ms": 6000,
+   "bytes": 30800,
+   "crc32": 798289394,
+   "sha256": "15e2d6fc94eaa00fe4d5764f89f93ba4648fa5fc1a7f5bf964e65fa410a67443"
+  },
+  {
+   "id": "wave",
+   "label": "Wave",
+   "file": "wave.bin",
+   "frames": 32,
+   "duration_ms": 4800,
+   "bytes": 24640,
+   "crc32": 1990054069,
+   "sha256": "88253392bdf703109dc11eaba6d367533e688bdc855a703193980bf093807fe5"
+  },
+  {
+   "id": "dance",
+   "label": "Dance",
+   "file": "dance.bin",
+   "frames": 32,
+   "duration_ms": 4800,
+   "bytes": 24640,
+   "crc32": 344244518,
+   "sha256": "900e6fd9dd435fcbf63f1c5b7763a2a891965b6691fdda24dcf1dc6ef6bd49cb"
+  },
+  {
+   "id": "bored",
+   "label": "Bored / waiting",
+   "file": "bored.bin",
+   "frames": 32,
+   "duration_ms": 4800,
+   "bytes": 24640,
+   "crc32": 3409301096,
+   "sha256": "6f17adb23ae5a3c3a185d6715437e40cea9d57f0f83b6bb43a36d923535ec51c"
+  },
+  {
+   "id": "clap",
+   "label": "Clap",
+   "file": "clap.bin",
+   "frames": 32,
+   "duration_ms": 4800,
+   "bytes": 24640,
+   "crc32": 1849628734,
+   "sha256": "51f61e92316d2b73d0aa47650455c64ec10c59976a419b1ef3aedcc90ce9b058"
+  },
+  {
+   "id": "launch",
+   "label": "Project launch",
+   "file": "launch.bin",
+   "frames": 32,
+   "duration_ms": 4800,
+   "bytes": 24640,
+   "crc32": 3067965586,
+   "sha256": "45e35a17583a6180f66855658dcae7c59303eeebda687757a5fe5329b44dbd83"
+  },
+  {
+   "id": "sunset",
+   "label": "Sunset",
+   "file": "sunset.bin",
+   "frames": 40,
+   "duration_ms": 6000,
+   "bytes": 30800,
+   "crc32": 2020411150,
+   "sha256": "b47cc8eaf7a9d3d175247e71908d37930c8dc33f339c21c97c5489b26b5778a5"
+  },
+  {
+   "id": "christmas",
+   "label": "Christmas",
+   "file": "christmas.bin",
+   "frames": 32,
+   "duration_ms": 4800,
+   "bytes": 24640,
+   "crc32": 3166158208,
+   "sha256": "758dc40a17b9448193ef7138b4dc1564d10aebcb58153e217f3b571e19916e7b"
+  },
+  {
+   "id": "thought",
+   "label": "Thinking",
+   "file": "thought.bin",
+   "frames": 32,
+   "duration_ms": 4800,
+   "bytes": 24640,
+   "crc32": 2654013978,
+   "sha256": "68eb2b9959b653b19f48266e6cd01dd1426d637d5208e9b1f11d18235d7bcf79"
+  },
+  {
+   "id": "morph",
+   "label": "Morph play",
+   "file": "morph.bin",
+   "frames": 32,
+   "duration_ms": 4800,
+   "bytes": 24640,
+   "crc32": 3801216564,
+   "sha256": "cc828f8583a517a0f6364706b46ac0d27fe959653ad7e4460e538e5837a3f240"
+  }
+ ]
+}

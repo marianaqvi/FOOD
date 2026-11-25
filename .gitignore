@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+.next/
+web/.data/
+*.sqlite
+*.sqlite-journal
+.env
+.env.*
+!.env.example
+firmware/secrets.py
