@@ -9,8 +9,8 @@ Full brief: `CLAUDE.md`. Studio brief: `reference/reception-display-brief.pdf`.
 | Milestone | State |
 | --- | --- |
 | 1. Asset pipeline, tests, CPU reference renderer, docs | done (software only) |
-| 1. Next.js canvas preview | built in `web/`; typecheck, 5 parity tests and production build pass; **not yet looked at in a browser** (see docs/test-log.md) |
-| 2. Hardware proof | pending your go-ahead; nothing has touched the board |
+| 1. Next.js canvas preview | built in `web/`; typecheck, 5 parity tests and production build pass; checked by eye in the browser pane with `next start` and `npm run dev` (see docs/test-log.md) |
+| 2. Hardware proof | scripts and step-by-step guide written and tested against a fake board only (`docs/hardware-proof.md`); stages 1 and 2 passed on a real panel; two panels together on the one adapter collapse the board's power (see docs/test-log.md); **single-panel mode is the interim plan**. Renderer, player and clip stages 5-6 are written and host-tested (116 tests) but **not yet installed or run on the board** |
 | 3 to 5. Web app, device link, production | not started |
 
 ## Layout
@@ -22,7 +22,16 @@ scripts/pack_assets.py                    validate + convert JSON -> per-reactio
 scripts/reference_renderer.py             CPU reference renderer (spec for browser and firmware)
 shared/limits.json                        versioned limits and defaults
 firmware/assets/                          generated .bin files + manifest.json (480,480 bytes)
-tests/                                    packing, parity, renderer golden tests
+firmware/power.py                         hard limits on the device (RGB clamp, lit-pixel cap)
+firmware/hwtest_common.py                 strict helpers for the sparse hardware tests
+firmware/renderer.py                      composes a packed frame into the display (clip, origin, clamps, caps)
+firmware/player.py                        non-blocking streaming player with fallback (one frame in RAM)
+firmware/fallback.py                      GENERATED: idle record 0, shown only if animation files are bad
+scripts/make_fallback.py                  regenerates/checks firmware/fallback.py
+firmware/tools/hw*.py                     stage 0 to 3 board scripts (gated, at most 4 pixels)
+firmware/tools/stage_runner_main.py       button-armed stage runner, installed on the board as main.py
+tests/                                    packing, parity, renderer golden tests, fake-board script tests
+docs/hardware-proof.md                    exact Mac/Thonny steps for the hardware proof
 docs/hardware.md                          wiring observations and safety checklist
 docs/test-log.md                          software vs hardware test record
 ```
@@ -34,7 +43,7 @@ Run from the repo root with standard CPython 3.8+ (no extra packages):
 ```bash
 python3 scripts/pack_assets.py          # validate source and write firmware/assets/
 python3 scripts/pack_assets.py --check  # fail if firmware/assets/ is stale
-python3 -m unittest discover -s tests   # 28 tests
+python3 -m unittest discover -s tests   # 116 tests
 ```
 
 ## Binary format
@@ -43,4 +52,4 @@ One `<reaction_id>.bin` per reaction: fixed 770-byte records, `uint16 LE duratio
 
 ## Safety
 
-The preview and tests cannot certify electrical safety. Read `docs/hardware.md` before connecting anything. Limits (RGB scale 0.10, 281 lit pixels, speed 0.5x to 1x) live in `shared/limits.json`. Never flash or overwrite the board without backing it up first.
+The preview and tests cannot certify electrical safety. Read `docs/hardware.md` before connecting anything. Limits (RGB scale hard max 0.20 since 2026-11-26, 281 lit pixels, speed 0.5x to 1x) live in `shared/limits.json`. Never flash or overwrite the board without backing it up first.

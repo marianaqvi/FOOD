@@ -10,3 +10,5 @@ web/.data/
 .env.*
 !.env.example
 firmware/secrets.py
+# board backups can contain Wi-Fi credentials; keep them out of Git
+backups/
