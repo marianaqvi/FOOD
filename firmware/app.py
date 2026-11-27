@@ -20,6 +20,11 @@ import isotime
 import power
 
 FW_VERSION = "i75w-0.4"
+STATUS_FILE = "/net_status.txt"  # last log lines + link state, so a run can be inspected afterwards
+STATUS_EVERY_MS = 30000
+RECENT_MAX = 14
+# status LED while supervised (stage 7): blue = no Wi-Fi, amber = Wi-Fi up but the control room is unreachable, green = talking to it
+LED_COLOURS = ((0, 0, 48), (112, 40, 0), (0, 64, 0))
 
 try:
     import gc
@@ -29,7 +34,8 @@ except ImportError:  # pragma: no cover
 
 class App:
     def __init__(self, player, rend, store, clock, log=print):
-        self.player, self.rend, self.store, self.clock, self.log = player, rend, store, clock, log
+        self.player, self.rend, self.store, self.clock = player, rend, store, clock
+        self._out = log
         self.net = None
         self.cfg = None
         self.revision = None
@@ -44,6 +50,40 @@ class App:
         self.max_tick_us = 0
         self.wifi_rssi = None
         self.rssi_at = None
+        self.led = None  # optional callable(rgb); set by the supervised runner stage only
+        self.led_state = None
+        self.led_at = None
+        self.status_path = None  # set on the board; None (no file) in tests unless asked
+        self.recent = []
+        self.status_at = None
+        self.status_seen = 0
+
+    def log(self, msg):
+        self.recent.append(msg)
+        if len(self.recent) > RECENT_MAX:
+            del self.recent[0]
+        self._out(msg)
+
+    def _housekeeping(self, now):
+        net = self.net
+        if net is not None and self.led is not None and (self.led_at is None or self.clock.diff(now, self.led_at) >= 500):
+            self.led_at = now
+            st = 2 if net.reachable() else (1 if net.wifi.connected else 0)
+            if st != self.led_state:
+                self.led_state = st
+                self.led(LED_COLOURS[st])
+        if self.status_path and (self.status_at is None or self.clock.diff(now, self.status_at) >= STATUS_EVERY_MS):
+            self.status_at = now
+            if len(self.recent) != self.status_seen or self.status_seen == 0:
+                self.status_seen = len(self.recent)
+                try:
+                    lines = list(self.recent)
+                    if net is not None:
+                        lines.append("link: wifi=%s reachable=%s fails=%s requests=%s revision=%s" % (net.wifi.connected, net.reachable(), net.fails, net.requests, self.revision))
+                    with open(self.status_path, "w") as f:
+                        f.write("\n".join(lines) + "\n")
+                except Exception:
+                    pass
 
     # ---- boot ----
     def boot(self):
@@ -175,6 +215,7 @@ class App:
                 self.wifi_rssi = self.net.wifi.rssi() if self.net.wifi.connected else None
         self.store.flush()
         self._rotate()
+        self._housekeeping(self.clock.ms())
 
 
 def build(i75, gfx, secrets, mode="single", origin=0, assets_dir="/assets", log=print):
@@ -192,6 +233,7 @@ def build(i75, gfx, secrets, mode="single", origin=0, assets_dir="/assets", log=
     pl.load(verify_crc=True)
     store = config_store.ConfigStore(clock, log=log)
     app = App(pl, rend, store, clock, log)
+    app.status_path = STATUS_FILE
     rand = lambda n: urandom.getrandbits(16) % n  # noqa: E731
     wlan = network.WLAN(network.STA_IF)
     wifi = nc.Wifi(wlan, secrets.WIFI_SSID, secrets.WIFI_PASSWORD, clock, log, rand)

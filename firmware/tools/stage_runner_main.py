@@ -299,8 +299,8 @@ class Runner:
             application = builder(self.i75, self.gfx, self.log)
         except Exception as e:
             return self._refuse("cannot start the network app (%r); is /secrets.py installed?" % (e,))
-        self.led(WHITE)
-        self.log("runner: RUN network app (any button stops it)")
+        application.led = lambda rgb: self.i75.set_led(rgb[0], rgb[1], rgb[2])  # LED: blue no Wi-Fi, amber no server, green connected
+        self.log("runner: RUN network app (any button stops it). LED: blue = no Wi-Fi, amber = Wi-Fi but no control room, green = connected")
         import app as app_mod
 
         def abort():

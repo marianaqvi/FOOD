@@ -1,3 +1,4 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = { reactStrictMode: true };
+// agentRules:false stops `next dev` writing an AGENTS.md rules file into the repo.
+const nextConfig = { reactStrictMode: true, agentRules: false };
 export default nextConfig;

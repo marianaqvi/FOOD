@@ -520,6 +520,12 @@ class FakeNet:
     def request_heartbeat(self):
         self.hb += 1
 
+    fails = 0
+    reach = False
+
+    def reachable(self):
+        return self.reach
+
     def set_intervals(self, a, b):
         self.intervals = (a, b)
 
@@ -672,6 +678,28 @@ class AppTests(unittest.TestCase):
         self.app.on_config(self.cfg(ambient=amb, blackout=True))
         self.run_ms(70000)
         self.assertFalse(any("ambient" in l for l in self.logs))
+
+    def test_led_shows_link_state_and_a_status_file_records_recent_log_lines(self):
+        seen = []
+        self.app.led = seen.append
+        self.app.status_path = os.path.join(self.tmp, "net_status.txt")
+        self.run_ms(700)
+        self.assertEqual(seen[-1], app_mod.LED_COLOURS[0])  # no Wi-Fi
+        self.net.wifi.connected = True
+        self.run_ms(700)
+        self.assertEqual(seen[-1], app_mod.LED_COLOURS[1])  # Wi-Fi, no server
+        self.net.reach = True
+        self.run_ms(700)
+        self.assertEqual(seen[-1], app_mod.LED_COLOURS[2])  # talking to the control room
+        self.assertEqual(len(seen), 3)  # only changes are written to the LED
+        self.t.t += app_mod.STATUS_EVERY_MS + 1
+        self.app.on_config(self.cfg(revision=11))
+        self.run_ms(50)
+        with open(self.app.status_path) as fh:
+            text = fh.read()
+        self.assertIn("applied config revision 11", text)
+        self.assertIn("link: wifi=True reachable=True", text)
+        self.assertLessEqual(len(self.app.recent), app_mod.RECENT_MAX)
 
     def test_heartbeat_payload_has_the_fields_the_server_requires(self):
         hb = self.app.heartbeat()
