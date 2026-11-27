@@ -1,9 +1,18 @@
 {
   "schema_version": 1,
   "_note": "Single source of truth for limits shared by the packer, tests, web validator and firmware. Firmware keeps its own copy of the hard limits in firmware/power.py; tests assert the two agree. These numbers are conservative software limits, NOT measured electrical limits.",
-  "habitat": { "width": 64, "height": 32 },
-  "chained_display": { "width": 128, "height": 32 },
-  "allowed_habitat_origins": [0, 64],
+  "habitat": {
+    "width": 64,
+    "height": 32
+  },
+  "chained_display": {
+    "width": 128,
+    "height": 32
+  },
+  "allowed_habitat_origins": [
+    0,
+    64
+  ],
   "max_lit_habitat_pixels": 281,
   "frame_ms": 150,
   "rgb_scale": {
@@ -12,18 +21,74 @@
     "run_permille": 200,
     "hard_max_permille": 200
   },
-  "speed": { "min": 0.5, "max": 1.0 },
-  "default_colors": { "sheep_a": "#F0F5F1", "sheep_b": "#F0F5F1", "effects": "#F0F5F1" },
-  "preset_swatches": ["#F0F5F1", "#FFB34F", "#FF729D", "#9CE987", "#75CAFF", "#B6A2FF", "#FF694D"],
+  "speed": {
+    "min": 0.5,
+    "max": 1.0
+  },
+  "default_colors": {
+    "sheep_a": "#F0F5F1",
+    "sheep_b": "#F0F5F1",
+    "effects": "#F0F5F1"
+  },
+  "preset_swatches": [
+    "#F0F5F1",
+    "#FFB34F",
+    "#FF729D",
+    "#9CE987",
+    "#75CAFF",
+    "#B6A2FF",
+    "#FF694D"
+  ],
   "reaction_ids": [
-    "idle", "wake", "arrive", "weather_rain", "weather_sun", "weather_cloud",
-    "celebrate", "birthday", "sleep", "wave", "dance", "bored", "clap",
-    "launch", "sunset", "christmas", "thought", "morph"
+    "idle",
+    "wake",
+    "arrive",
+    "weather_rain",
+    "weather_sun",
+    "weather_cloud",
+    "celebrate",
+    "birthday",
+    "sleep",
+    "wave",
+    "dance",
+    "bored",
+    "clap",
+    "launch",
+    "sunset",
+    "christmas",
+    "thought",
+    "morph"
   ],
   "expected_source": {
     "reactions": 18,
     "frames": 624,
     "max_union_lit_pixels": 281,
-    "reaction_duration_ms": [4800, 6000]
-  }
+    "reaction_duration_ms": [
+      4800,
+      6000
+    ]
+  },
+  "cycles": {
+    "min": 1,
+    "max": 20
+  },
+  "hold_max_seconds": 600,
+  "command_ttl_seconds": {
+    "default": 30,
+    "min": 5,
+    "max": 300,
+    "offline_max": 30
+  },
+  "device_timing_seconds": {
+    "poll": 2,
+    "heartbeat": 15,
+    "offline_after": 45
+  },
+  "event_names": [
+    "person.arrived",
+    "weather.changed",
+    "birthday",
+    "gesture.wave",
+    "schedule.sunset"
+  ]
 }

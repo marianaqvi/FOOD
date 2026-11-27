@@ -139,6 +139,16 @@ class RendererParity(unittest.TestCase):
             renderer_mod.Renderer(i75c, i75c.display, "weird", 0)
 
 
+class SharedLimits(unittest.TestCase):
+    def test_player_constants_agree_with_shared_limits(self):
+        lim = rr.LIMITS
+        self.assertEqual(player_mod.SPEED_MIN, int(lim["speed"]["min"] * 1000))
+        self.assertEqual(player_mod.SPEED_MAX, int(lim["speed"]["max"] * 1000))
+        self.assertEqual(player_mod.MAX_CYCLES, lim["cycles"]["max"])
+        self.assertEqual(player_mod.MAX_HOLD_MS, lim["hold_max_seconds"] * 1000)
+        self.assertEqual(lim["cycles"]["min"], 1)
+
+
 class RendererLimits(unittest.TestCase):
     def test_frame_over_281_distinct_pixels_is_replaced_by_black(self):
         rend, i75 = make_renderer("single")

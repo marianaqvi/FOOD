@@ -324,10 +324,10 @@ class StageRunner(unittest.TestCase):
             self.assertEqual(h.lit_frames(), [want])
             assert_always_safe(self, h.i75)
         h = RunnerHarness()
-        for _ in range(6):
+        for _ in range(7):
             h.hold(False, True, 100)
             h.release()
-        self.assertEqual(h.runner.stage, 1)  # wraps after stage 6
+        self.assertEqual(h.runner.stage, 1)  # wraps after stage 7
 
     def test_arm_gesture_does_not_change_stage(self):
         h = RunnerHarness()
@@ -680,16 +680,167 @@ class ClipStages(unittest.TestCase):
     def test_clip_run_leaves_a_readable_report_and_refusals_do_too(self):
         h = self.harness()
         self.run_stage_n(h, 5)
-        text = open(self.report).read()
+        with open(self.report) as fh:
+            text = fh.read()
         self.assertIn("RUN clip stage 5", text)
         self.assertIn("clip done", text)
         self.assertIn("clip frames=", text)
         h2 = self.harness(variant=5)
         self.run_stage_n(h2, 5)
-        self.assertIn("REFUSED", open(self.report).read())
+        with open(self.report) as fh:
+            self.assertIn("REFUSED", fh.read())
 
     def test_unwritable_report_path_never_breaks_a_run(self):
         h = self.harness()
         h.mod.REPORT_FILE = "/no/such/dir/last_run.txt"
         self.run_stage_n(h, 5)
         self.assertGreater(len(h.i75.snapshots), 100)
+
+
+class NetworkStageAndAutostart(unittest.TestCase):
+    """Stage 7 and the opt-in autostart, with a fake network (no radio, no sockets)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.players = []
+
+    def tearDown(self):
+        for p in self.players:
+            p.close()
+
+    def make_app(self, h):
+        import app as app_mod
+        import config_store
+        import player as player_mod
+        import renderer as renderer_mod
+        import test_network as tn
+
+        rend = renderer_mod.Renderer(h.i75, h.gfx, "single", 0, 200)
+        clock = player_mod.Clock(now_fn=lambda: h.t)
+        pl = player_mod.Player(rend, os.path.join(REPO, "firmware", "assets"), clock=clock, log=lambda m: None)
+        pl.load()
+        self.players.append(pl)
+        a = app_mod.App(pl, rend, config_store.ConfigStore(clock, os.path.join(self.tmp, "config.json"), log=lambda m: None), clock, log=h.logs.append)
+        a.net = tn.FakeNet()
+        return a
+
+    def harness(self, variant=1, builder=True):
+        h = RunnerHarness(variant=variant)
+        h.mod.ASSETS_DIR = os.path.join(REPO, "firmware", "assets")
+        if builder:
+            h.mod.APP_BUILDER = lambda i75, gfx, log: self.make_app(h)
+        h.mod.AUTOSTART_FILE = os.path.join(self.tmp, "autostart")
+        h.mod.CRASH_FILE = os.path.join(self.tmp, "crashes")
+        return h
+
+    def select7(self, h):
+        while h.runner.stage != 7:
+            h.hold(False, True, 100)
+            h.release()
+
+    def test_stage_7_runs_the_app_until_any_button_then_blanks_and_disarms(self):
+        h = self.harness()
+        self.select7(h)
+        h.arm()
+        h.hold(True, False, 1100)
+        n = []
+
+        def press_later():
+            n.append(1)
+            if len(n) == 1000:  # about two seconds in (2 ms per loop)
+                h.i75.buttons[1] = True
+
+        h.on_sleep = press_later
+        h.release()
+        self.assertTrue(any("stopped by button" in l for l in h.logs))
+        shots = h.i75.snapshots
+        self.assertGreater(len(shots), 8)
+        self.assertEqual(shots[-1].lit(), {})
+        import test_player as tp
+        tp.assert_snapshots_safe(self, h.i75)
+        self.assertEqual(h.i75.led, h.mod.BLUE)
+
+    def test_stage_7_still_needs_arming_and_a_single_panel(self):
+        h = self.harness()
+        self.select7(h)
+        h.run_a()
+        self.assertEqual(h.lit_frames(), [])
+        self.assertTrue(any("not armed" in l for l in h.logs))
+        h2 = self.harness(variant=5)
+        self.select7(h2)
+        h2.arm()
+        h2.run_a()
+        self.assertEqual(h2.lit_frames(), [])
+        self.assertTrue(any("REFUSED" in l and "single-panel" in l for l in h2.logs))
+
+    def test_stage_7_refuses_cleanly_when_the_secrets_or_modules_are_missing(self):
+        h = self.harness(builder=False)
+
+        def boom(i75, gfx, log):
+            raise ImportError("no module named secrets")
+
+        h.mod.APP_BUILDER = boom
+        self.select7(h)
+        h.arm()
+        h.run_a()
+        self.assertEqual(h.lit_frames(), [])
+        self.assertTrue(any("REFUSED" in l and "secrets" in l for l in h.logs))
+
+    def test_autostart_runs_until_a_and_b_are_held_three_seconds(self):
+        h = self.harness()
+        steps = []
+
+        def sleep(ms):
+            h.t += ms
+            steps.append(h.t)
+            if h.t > 4000:
+                h.i75.buttons[0] = h.i75.buttons[1] = True
+
+        r = h.mod.run_unattended(h.i75, h.gfx, 1, 0, 1, log=h.logs.append, now=lambda: h.t, sleep_ms=sleep, reset=lambda: None, builder=lambda i, g, l: self.make_app(h))
+        self.assertEqual(r, "stopped")
+        self.assertGreater(len(h.i75.snapshots), 20)
+        self.assertEqual(h.i75.snapshots[-1].lit(), {})
+
+    def test_a_brief_button_press_does_not_stop_autostart(self):
+        h = self.harness()
+        state = {"n": 0}
+
+        def sleep(ms):
+            h.t += ms
+            state["n"] += 1
+            h.i75.buttons[0] = h.i75.buttons[1] = 1000 < h.t < 2000  # one second only
+            if h.t > 8000:
+                raise KeyboardInterrupt
+
+        with self.assertRaises(KeyboardInterrupt):
+            h.mod.run_unattended(h.i75, h.gfx, 1, 0, 1, log=h.logs.append, now=lambda: h.t, sleep_ms=sleep, reset=lambda: None, builder=lambda i, g, l: self.make_app(h))
+        self.assertGreater(len(h.i75.snapshots), 40)  # still animating well after the brief press
+
+    def test_autostart_refuses_in_chained_variants(self):
+        h = self.harness(variant=5)
+        r = h.mod.run_unattended(h.i75, h.gfx, 5, 0, 1, log=h.logs.append, now=lambda: h.t, sleep_ms=lambda ms: None, reset=lambda: None, builder=lambda i, g, l: self.make_app(h))
+        self.assertEqual(r, "refused")
+        self.assertEqual(h.lit_frames(), [])
+
+    def test_a_crash_reboots_and_three_in_a_row_disable_autostart(self):
+        h = self.harness()
+        open(h.mod.AUTOSTART_FILE, "w").close()
+
+        def bad_builder(i, g, l):
+            a = self.make_app(h)
+
+            def boom():
+                raise RuntimeError("simulated fault")
+
+            a.tick = boom
+            return a
+
+        resets = []
+        results = []
+        for _ in range(3):
+            results.append(h.mod.run_unattended(h.i75, h.gfx, 1, 0, 1, log=h.logs.append, now=lambda: h.t, sleep_ms=lambda ms: None, reset=lambda: resets.append(1), builder=bad_builder))
+        self.assertEqual(len(resets), 2)  # the third crash gives up instead of rebooting
+        self.assertEqual(results[-1], "disabled")
+        self.assertFalse(os.path.exists(h.mod.AUTOSTART_FILE))
+        self.assertEqual(h.i75.led, h.mod.RED)
+        self.assertEqual(h.i75.snapshots[-1].lit(), {})

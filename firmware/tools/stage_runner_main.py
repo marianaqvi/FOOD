@@ -23,6 +23,12 @@
 #   stage 6: ANIMATION CLIP: sleep once, then morph once, then idle, about 20 s in total
 #            Stages 5 and 6 need ONE panel (variants 1-4), the animation files in /assets,
 #            and refuse to run otherwise. Any button aborts and blanks the panel.
+#   stage 7: NETWORK APP, supervised: Wi-Fi, polls the control room, plays what it sends (needs
+#            /secrets.py, never in Git). Runs until you press any button, then blanks.
+#
+# AUTOSTART (opt-in, off by default): if the file /autostart exists the board runs the network app
+# at boot instead of waiting here. Hold A and B while powering on to skip it; hold A and B for 3 s
+# while it runs to stop it and come back to this menu. Three crashes in a row remove /autostart.
 #
 # Display variants 1-4 = ONE panel (single 64 x 32): generic, FM6126A init, inverted strobe, both.
 # Variants 5-8 = the same four setups for TWO chained panels (128 x 32). Default is variant 1.
@@ -49,9 +55,14 @@ RUN_HOLD_MS = 1000
 POLL_MS = 20
 TAP_MAX_MS = 1000
 VARIANT_HOLD_MS = 3000
-STAGES = 6
+STAGES = 7
 ASSETS_DIR = "/assets"
 REPORT_FILE = "/last_run.txt"  # last clip run summary, so it can be read later without the Mac attached
+AUTOSTART_FILE = "/autostart"
+CRASH_FILE = "/crashes"
+CRASH_LIMIT = 3
+HEALTHY_MS = 120000
+STOP_HOLD_MS = 3000
 CLIP_MS = {5: 30000, 6: 20000}
 CLIP_SCRIPT = {5: (), 6: ("sleep", "morph")}
 VARIANT_FILE = "/panel_variant"
@@ -69,6 +80,16 @@ OFF = (0, 0, 0)
 
 class Abort(Exception):
     pass
+
+
+APP_BUILDER = None  # tests install a builder here; on the board the default imports /secrets.py
+
+
+def _default_builder(i75, gfx, log):
+    import app as app_mod
+    import secrets  # /secrets.py on the board, created by scripts/make_secrets.py, never committed
+
+    return app_mod.build(i75, gfx, secrets, "single", 0, ASSETS_DIR, log)
 
 
 def _ms():
@@ -268,7 +289,36 @@ class Runner:
         self._disarm()
         self.need_release = True
 
+    def run_network_stage(self):
+        """Stage 7: the networked app, supervised. Any button stops it."""
+        self.armed_at = None
+        if hw.variant_parts(self.variant)[0] != "single":
+            return self._refuse("the network app runs in single-panel variants 1-4 only (habitat origin not chosen yet)")
+        try:
+            builder = APP_BUILDER or _default_builder
+            application = builder(self.i75, self.gfx, self.log)
+        except Exception as e:
+            return self._refuse("cannot start the network app (%r); is /secrets.py installed?" % (e,))
+        self.led(WHITE)
+        self.log("runner: RUN network app (any button stops it)")
+        import app as app_mod
+
+        def abort():
+            a, b = self._pressed()
+            return a or b
+
+        try:
+            app_mod.run(application, abort, self.sleep_ms, self.log)
+            self.log("runner: network app stopped by button, panel blanked")
+        except Exception as e:
+            self.log("runner: network app ERROR %r, panel blanked" % (e,))
+            self._flash(RED, 3)
+        self._disarm()
+        self.need_release = True
+
     def run_stage(self):
+        if self.stage == 7:
+            return self.run_network_stage()
         if self.stage >= 5:
             return self.run_clip()
         pixels, seconds = hw.stage_pixels(self.stage)
@@ -294,6 +344,93 @@ class Runner:
             self._flash(RED, 3)
         self._disarm()
         self.need_release = True
+
+
+def _exists(path):
+    try:
+        import os
+        os.stat(path)
+        return True
+    except OSError:
+        return False
+
+
+def _write_text(path, text):
+    try:
+        with open(path, "w") as f:
+            f.write(text)
+    except OSError:
+        pass
+
+
+def _remove(path):
+    try:
+        import os
+        os.remove(path)
+    except OSError:
+        pass
+
+
+def _read_int(path):
+    try:
+        with open(path) as f:
+            return int(f.read().strip())
+    except Exception:
+        return 0
+
+
+def run_unattended(i75, gfx, variant, sw_a, sw_b, log=print, now=None, sleep_ms=None, reset=None, builder=None):
+    """Autostart: run the network app until A and B are held for 3 s. Returns 'stopped', 'refused'
+    or 'disabled'. On an unexpected error it reboots (a transient fault recovers by itself), and
+    after CRASH_LIMIT consecutive crashes it removes /autostart so the board stays in the menu."""
+    now = now or _ms
+    sleep_ms = sleep_ms or _sleep_ms
+    reset = reset or _reset
+    if hw.variant_parts(variant)[0] != "single":
+        log("autostart: refused, needs a single-panel variant (1-4)")
+        return "refused"
+    try:
+        application = (builder or APP_BUILDER or _default_builder)(i75, gfx, log)
+    except Exception as e:
+        log("autostart: cannot start (%r); staying in the menu" % (e,))
+        return "refused"
+    import app as app_mod
+
+    held = [None]
+    healthy = [False]
+    started = now()
+
+    def abort():
+        t = now()
+        if i75.switch_pressed(sw_a) and i75.switch_pressed(sw_b):
+            if held[0] is None:
+                held[0] = t
+            return _diff(t, held[0]) >= STOP_HOLD_MS
+        held[0] = None
+        if not healthy[0] and _diff(t, started) >= HEALTHY_MS:
+            healthy[0] = True
+            _write_text(CRASH_FILE, "0")
+        return False
+
+    i75.set_led(0, 0, 0)
+    log("autostart: running the network app (hold A+B for 3 s to stop)")
+    try:
+        app_mod.run(application, abort, sleep_ms, log)
+    except Exception as e:
+        crashes = _read_int(CRASH_FILE) + 1
+        _write_text(CRASH_FILE, str(crashes))
+        log("autostart: ERROR %r (crash %d of %d)" % (e, crashes, CRASH_LIMIT))
+        if crashes >= CRASH_LIMIT:
+            _remove(AUTOSTART_FILE)
+            _write_text(CRASH_FILE, "0")
+            i75.set_led(RED[0], RED[1], RED[2])
+            log("autostart: disabled after repeated crashes; staying in the menu")
+            return "disabled"
+        sleep_ms(2000)
+        reset()
+        return "disabled"
+    log("autostart: stopped by A+B")
+    return "stopped"
 
 
 def led_selftest(i75, sleep_ms=None):
@@ -333,7 +470,7 @@ def main(reset=None):
     log = print
     variant = read_variant()
     mode, setup = hw.variant_parts(variant)
-    log("stage runner v4: opening the display once, variant %d (%s), panel stays black" % (variant, hw.VARIANTS[variant]))
+    log("stage runner v5: opening the display once, variant %d (%s), panel stays black" % (variant, hw.VARIANTS[variant]))
     i75 = gfx = None
 
     def change_variant(v):
@@ -360,7 +497,10 @@ def main(reset=None):
             _sleep_ms(250)
         i75.set_led(BLUE[0], BLUE[1], BLUE[2])
         runner = Runner(i75, gfx, sw_a, sw_b, variant=variant, on_variant=change_variant)
-        log("runner: disarmed. Tap B = stage, hold A+B 3 s = arm, hold A 1 s + release = run, hold B 3 s = next display variant. Stages 5-6 = animation clips (single panel).")
+        if _exists(AUTOSTART_FILE) and not (i75.switch_pressed(sw_a) and i75.switch_pressed(sw_b)):
+            run_unattended(i75, gfx, variant, sw_a, sw_b, log, reset=reset)
+            i75.set_led(BLUE[0], BLUE[1], BLUE[2])
+        log("runner: disarmed. Tap B = stage, hold A+B 3 s = arm, hold A 1 s + release = run, hold B 3 s = next display variant. Stages 5-6 = animation clips, 7 = network app (single panel).")
         while True:
             runner.tick()
             _sleep_ms(POLL_MS)

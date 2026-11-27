@@ -1,4 +1,4 @@
-import HabitatPreview from "@/components/HabitatPreview";
+import ControlRoom from "@/components/ControlRoom";
 
 export default function Home() {
   return (
@@ -8,9 +8,9 @@ export default function Home() {
           <span className="eyebrow">FOOD Arts &amp; Technology · Reception</span>
           <h1>Sheep habitat</h1>
         </div>
-        <small className="muted">Control room · milestone 1: local preview</small>
+        <small className="muted">Control room · milestone 3</small>
       </header>
-      <HabitatPreview />
+      <ControlRoom />
     </main>
   );
 }

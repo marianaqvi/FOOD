@@ -11,7 +11,9 @@ Full brief: `CLAUDE.md`. Studio brief: `reference/reception-display-brief.pdf`.
 | 1. Asset pipeline, tests, CPU reference renderer, docs | done (software only) |
 | 1. Next.js canvas preview | built in `web/`; typecheck, 5 parity tests and production build pass; checked by eye in the browser pane with `next start` and `npm run dev` (see docs/test-log.md) |
 | 2. Hardware proof | scripts and step-by-step guide written and tested against a fake board only (`docs/hardware-proof.md`); stages 1 and 2 passed on a real panel; two panels together on the one adapter collapse the board's power (see docs/test-log.md); **single-panel mode is the interim plan**. Renderer, player and clip stages 5-6 are written and host-tested (116 tests) but **not yet installed or run on the board** |
-| 3 to 5. Web app, device link, production | not started |
+| 3. Web control room and mock API | built in `web/` (UI, settings with history and undo, commands with acks, mock mode, device simulator); 66 web tests plus a manual browser pass; see `docs/api.md` |
+| 4. Firmware link to the backend | firmware written and host-tested (173 tests plus an end-to-end run against the real server); deploy tooling ready; **not yet run on the board** (`docs/hardware-proof.md` Part F) |
+| 5. Production | not started |
 
 ## Layout
 
@@ -26,6 +28,13 @@ firmware/power.py                         hard limits on the device (RGB clamp, 
 firmware/hwtest_common.py                 strict helpers for the sparse hardware tests
 firmware/renderer.py                      composes a packed frame into the display (clip, origin, clamps, caps)
 firmware/player.py                        non-blocking streaming player with fallback (one frame in RAM)
+firmware/network_client.py                non-blocking HTTP, Wi-Fi manager, poll/heartbeat scheduler with backoff
+firmware/config_store.py                  strict config validation, atomic last-known-good cache
+firmware/isotime.py                       UTC timestamp parsing without an RTC
+firmware/app.py                           the networked player (config, commands, blackout, ambient rotation)
+firmware/secrets.example.py               template; real secrets.py is git-ignored (scripts/make_secrets.py)
+scripts/deploy_board.py, boardlink.py     verified USB deploy of the firmware (never flashes)
+tests/e2e_device_vs_server.py             real firmware modules vs the real server (run by hand)
 firmware/fallback.py                      GENERATED: idle record 0, shown only if animation files are bad
 scripts/make_fallback.py                  regenerates/checks firmware/fallback.py
 firmware/tools/hw*.py                     stage 0 to 3 board scripts (gated, at most 4 pixels)
@@ -34,6 +43,8 @@ tests/                                    packing, parity, renderer golden tests
 docs/hardware-proof.md                    exact Mac/Thonny steps for the hardware proof
 docs/hardware.md                          wiring observations and safety checklist
 docs/test-log.md                          software vs hardware test record
+docs/api.md                               control room API, device contract, run commands
+web/                                      Next.js control room (UI, API routes, file-backed dev repository, device simulator)
 ```
 
 ## Commands
@@ -43,7 +54,7 @@ Run from the repo root with standard CPython 3.8+ (no extra packages):
 ```bash
 python3 scripts/pack_assets.py          # validate source and write firmware/assets/
 python3 scripts/pack_assets.py --check  # fail if firmware/assets/ is stale
-python3 -m unittest discover -s tests   # 116 tests
+python3 -m unittest discover -s tests   # 173 tests
 ```
 
 ## Binary format

@@ -126,6 +126,24 @@ Only panel 1 is connected (power plug and HUB75 on `JIN`); panel 2 is fully disc
 
 Stop at once and switch off at the wall if anything feels warm or smells.
 
+## Part F: network link, one panel (milestone 4; software tested, NOT yet run on the board)
+
+Same rules as Part E: ONE panel (power plug in, board on its `JIN`), panel 2 fully disconnected, adapter power, Mac unplugged while panels are powered.
+
+1. **Server on the LAN (Mac).** Use the trusted network only, test data only, plain HTTP, throwaway dev token:
+   `cd web && HOST=$(ipconfig getifaddr en0); MOCK_MODE=1 npm run dev -- -H $HOST -p 3000`
+   macOS may ask whether `node` may accept incoming connections: allow it. If the office Wi-Fi isolates clients (the board cannot reach the Mac), use a phone hotspot or a home network instead; do not bypass policy.
+2. **Secrets (you type them, nothing is printed or committed):** `python3 scripts/make_secrets.py`
+3. **Deploy (Mac attached, adapter NOT connected, BOTH panel power plugs UNPLUGGED):**
+   `python3 scripts/deploy_board.py --i-have-unplugged-panel-power --secrets --expect /main.py=35d43fc956e4 --expect /power.py=6fb6c8abeaee --expect /hwtest_common.py=17683c74f7c1`
+   It refuses to overwrite anything it did not install (or you did not vouch for), verifies every file by SHA-256 and writes `/deploy_manifest.json`.
+4. **Run supervised (Mac unplugged):** plug in panel 1 power and the adapter. Tap **B** seven times (seven amber flashes), arm (A + B 3 s), hold A 1 s and release. The sheep idles; any button stops it. Open the control room: it should say **Display online** and NOT "SIMULATED DEVICE". Send Wave, change a colour, move the brightness slider, Blackout and Resume.
+5. **Network loss:** stop the server (or switch Wi-Fi off). The sheep must keep animating without a stutter; the control room shows OFFLINE after 45 s; restore it and it reconnects by itself.
+6. **Reboot:** unplug and replug the adapter. A blackout set before the reboot must still be black when the app restarts (stage 7 again). A reaction sent before the reboot must NOT replay.
+7. **Only after 4 to 6 pass:** `python3 scripts/deploy_board.py --i-have-unplugged-panel-power --autostart on` (Mac attached, panel plugs out). Then the board starts the app by itself at power-up; hold A + B while powering on to skip it, or hold A + B for 3 s while running to stop it. `--autostart off` undoes it.
+
+Record what you see, what the control room says, and anything warm, in `docs/test-log.md`. Unmeasured and untested on the board: Wi-Fi join time, whether `select.poll` and non-blocking sockets behave as on the host, RAM with the network modules loaded, frame timing while Wi-Fi is busy, current draw with the radio on.
+
 ## Not done yet in this milestone
 
 - `firmware/renderer.py`, `firmware/player.py`, on-device asset upload, memory and timing measurement.
